@@ -177,15 +177,24 @@ const snackbar = ref({ show: false, text: '' })
 // When jobs.isSearching is true, items are already filtered by backend on company.
 // When not searching, allow client-side filter on notes as a convenience.
 const filteredItems = computed(() => {
-  const list = jobs.items
   const q = query.value.trim().toLowerCase()
-  if (jobs.isSearching) return list
-  if (!q) return list
-  return list.filter(j =>
-    j.company.toLowerCase().includes(q) ||
-    (j.notes ?? '').toLowerCase().includes(q)
-  )
+
+  // base list
+  let list = jobs.items
+
+  // optional client-side filter when not using server search
+  if (!jobs.isSearching && q) {
+    list = list.filter(j =>
+      j.company.toLowerCase().includes(q) ||
+      (j.notes ?? '').toLowerCase().includes(q)
+    )
+  }
+
+  // sort by newest appliedAt (desc)
+  const toTime = (d: string | Date) => new Date(d).getTime() || 0
+  return [...list].sort((a, b) => toTime(b.appliedAt) - toTime(a.appliedAt))
 })
+
 
 function formatDate(d: string | Date) {
   const dt = new Date(d)
