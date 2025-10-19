@@ -1,0 +1,21 @@
+{
+  "name": "ats",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@pinia/nuxt": "^0.11.2",
+    "nuxt": "^4.1.3",
+    "vuetify": "^3.10.5",
+    "vuetify-nuxt-module": "^0.18.8"
+  },
+  "devDependencies": {
+    "@mdi/font": "^7.4.47"
+  }
+}
