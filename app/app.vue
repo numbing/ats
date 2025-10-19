@@ -8,7 +8,8 @@
 
       <!-- main nav -->
       <v-btn variant="text" to="/">Home</v-btn>
-      <v-btn variant="text" to="/about">About</v-btn>
+            <v-btn variant="text" component="NuxtLink" to="/tracker">Tracker</v-btn>
+
       <v-btn variant="text" href="https://nuxt.com" target="_blank" rel="noopener">Nuxt</v-btn>
 
       <v-divider class="mx-2" vertical />
