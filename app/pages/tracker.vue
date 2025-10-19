@@ -43,7 +43,6 @@
       density="comfortable"
       hover
     >
-      <!-- # column derived from rendered order -->
       <template #item._row="{ index }">
         <v-chip label variant="tonal">{{ index + 1 }}</v-chip>
       </template>
@@ -120,8 +119,19 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="deleteDialog = false">Cancel</v-btn>
-          <v-btn variant="tonal" color="error" :loading="jobs.loading" @click="doDelete">Delete</v-btn>
+          <v-btn variant="text" :disabled="deleteLoading" @click="deleteDialog = false">Cancel</v-btn>
+          <v-btn
+            variant="tonal"
+            color="error"
+            :loading="deleteLoading"
+            :disabled="deleteLoading"
+            @click="doDelete"
+          >
+            <template v-if="!deleteLoading">Delete</template>
+            <template v-else>
+              <v-progress-circular indeterminate size="16" width="2" />
+            </template>
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -142,7 +152,7 @@ definePageMeta({ middleware: 'auth', title: 'Tracker' })
 const jobs = useJobsStore()
 const auth = useAuthStore()
 
-// Table headers: use a synthetic "_row" key for the counter column
+// Table headers
 const headers = [
   { title: '#', key: '_row', width: 80, sortable: false },
   { title: 'Company', key: 'company', minWidth: 240 },
@@ -169,26 +179,25 @@ const query = ref('')
 // Delete confirm
 const deleteDialog = ref(false)
 const toDelete = ref<any | null>(null)
+const deleteLoading = ref(false) // local loading state for delete button
 
 // Snackbar
 const snackbar = ref({ show: false, text: '' })
 
-// Frontend-only filter by company and sort by newest appliedAt
+// Frontend-only filter by company and sort by newest
 const filteredItems = computed(() => {
   const q = query.value.trim().toLowerCase()
   const base = jobs.items
-
   const filtered = q
     ? base.filter(j => j.company.toLowerCase().includes(q))
     : base
-
   const toTime = (d: string | Date) => new Date(d).getTime() || 0
   return [...filtered].sort((a, b) => toTime(b.appliedAt) - toTime(a.appliedAt))
 })
 
 function formatDate(d: string | Date) {
   const dt = new Date(d)
-  return dt.toLocaleDateString('de-DE') // e.g. 20.10.2025
+  return dt.toLocaleDateString('de-DE')
 }
 
 async function onAdd() {
@@ -216,7 +225,10 @@ function cancelEdit() {
 }
 
 function updateDateDisplay() {
-  if (!editAppliedAt.value) { editDateDisplay.value = ''; return }
+  if (!editAppliedAt.value) {
+    editDateDisplay.value = ''
+    return
+  }
   editDateDisplay.value = editAppliedAt.value.toLocaleDateString('de-DE')
 }
 
@@ -236,14 +248,21 @@ function confirmDelete(item: any) {
 }
 
 async function doDelete() {
-  if (!toDelete.value) return
-  await jobs.remove(toDelete.value._id)
-  deleteDialog.value = false
-  snackbar.value = { show: true, text: 'Application deleted' }
-  toDelete.value = null
+  if (!toDelete.value || deleteLoading.value) return
+  deleteLoading.value = true
+  try {
+    await jobs.remove(toDelete.value._id)
+    snackbar.value = { show: true, text: 'Application deleted' }
+    toDelete.value = null
+    deleteDialog.value = false
+  } catch (e) {
+    snackbar.value = { show: true, text: 'Delete failed' }
+  } finally {
+    deleteLoading.value = false
+  }
 }
 
-// Clear search (frontend-only)
+// Clear search
 function clearSearch() {
   query.value = ''
 }
