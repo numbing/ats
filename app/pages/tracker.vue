@@ -19,17 +19,17 @@
     <div class="d-flex flex-wrap ga-3 mb-4">
       <v-text-field
         v-model="query"
-        label="Search company (server) or notes (client)"
+        label="Search company"
         prepend-inner-icon="mdi-magnify"
         hide-details
         density="comfortable"
         class="flex-grow-1"
-        @keyup.enter="doSearch"
+        @keyup.enter="query = query.trim()"
       />
-      <v-btn color="primary" variant="tonal" :loading="jobs.loading" @click="doSearch">
+      <v-btn color="primary" variant="tonal" @click="query = query.trim()">
         Search
       </v-btn>
-      <v-btn variant="text" :disabled="!query && !jobs.isSearching" @click="clearSearch">
+      <v-btn variant="text" :disabled="!query" @click="clearSearch">
         Clear
       </v-btn>
     </div>
@@ -100,7 +100,7 @@
 
       <template #no-data>
         <div class="text-medium-emphasis py-8 text-center w-100">
-          {{ jobs.isSearching ? 'Nothing found' : 'No applications yet. Add your first one above.' }}
+          {{ query ? 'No companies match your search' : 'No applications yet. Add your first one above.' }}
         </div>
       </template>
     </v-data-table>
@@ -163,7 +163,7 @@ const dateMenu = ref(false)
 const editAppliedAt = ref<Date | null>(null)
 const editDateDisplay = ref('')
 
-// Search
+// Search (frontend-only)
 const query = ref('')
 
 // Delete confirm
@@ -173,28 +173,18 @@ const toDelete = ref<any | null>(null)
 // Snackbar
 const snackbar = ref({ show: false, text: '' })
 
-// Items shown in the table
-// When jobs.isSearching is true, items are already filtered by backend on company.
-// When not searching, allow client-side filter on notes as a convenience.
+// Frontend-only filter by company and sort by newest appliedAt
 const filteredItems = computed(() => {
   const q = query.value.trim().toLowerCase()
+  const base = jobs.items
 
-  // base list
-  let list = jobs.items
+  const filtered = q
+    ? base.filter(j => j.company.toLowerCase().includes(q))
+    : base
 
-  // optional client-side filter when not using server search
-  if (!jobs.isSearching && q) {
-    list = list.filter(j =>
-      j.company.toLowerCase().includes(q) ||
-      (j.notes ?? '').toLowerCase().includes(q)
-    )
-  }
-
-  // sort by newest appliedAt (desc)
   const toTime = (d: string | Date) => new Date(d).getTime() || 0
-  return [...list].sort((a, b) => toTime(b.appliedAt) - toTime(a.appliedAt))
+  return [...filtered].sort((a, b) => toTime(b.appliedAt) - toTime(a.appliedAt))
 })
-
 
 function formatDate(d: string | Date) {
   const dt = new Date(d)
@@ -253,16 +243,9 @@ async function doDelete() {
   toDelete.value = null
 }
 
-// Backend search on company substring (case-insensitive)
-async function doSearch() {
-  const q = query.value.trim()
-  await jobs.search(q)
-}
-
-// Clear search and reload everything
-async function clearSearch() {
+// Clear search (frontend-only)
+function clearSearch() {
   query.value = ''
-  await jobs.fetchAll()
 }
 
 onMounted(async () => {
