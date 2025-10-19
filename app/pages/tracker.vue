@@ -1,9 +1,10 @@
+<!-- pages/tracker.vue -->
 <template>
   <v-container class="py-10">
     <div class="d-flex align-center justify-space-between mb-6">
       <h1 class="text-h5">My Applications</h1>
       <v-chip label variant="tonal">
-        Total: <strong class="ml-1">{{ jobs.items.length }}</strong>
+        Total: <strong class="ml-1">{{ filteredItems.length }}</strong>
       </v-chip>
     </div>
 
@@ -18,13 +19,19 @@
     <div class="d-flex flex-wrap ga-3 mb-4">
       <v-text-field
         v-model="query"
-        label="Search companies / notes"
+        label="Search company (server) or notes (client)"
         prepend-inner-icon="mdi-magnify"
         hide-details
         density="comfortable"
         class="flex-grow-1"
+        @keyup.enter="doSearch"
       />
-      <v-btn variant="tonal" :disabled="!query" @click="query = ''">Clear</v-btn>
+      <v-btn color="primary" variant="tonal" :loading="jobs.loading" @click="doSearch">
+        Search
+      </v-btn>
+      <v-btn variant="text" :disabled="!query && !jobs.isSearching" @click="clearSearch">
+        Clear
+      </v-btn>
     </div>
 
     <!-- List -->
@@ -36,8 +43,9 @@
       density="comfortable"
       hover
     >
-      <template #item.number="{ item }">
-        <v-chip label variant="tonal">{{ item.number }}</v-chip>
+      <!-- # column derived from rendered order -->
+      <template #item._row="{ index }">
+        <v-chip label variant="tonal">{{ index + 1 }}</v-chip>
       </template>
 
       <template #item.appliedAt="{ item }">
@@ -74,19 +82,25 @@
       </template>
 
       <template #item.actions="{ item }">
-        <div v-if="editId === item._id">
+        <div v-if="editId === item._id" class="d-flex ga-1">
           <v-btn size="small" variant="tonal" color="primary" @click="saveEdit(item._id)">Save</v-btn>
           <v-btn size="small" variant="text" @click="cancelEdit">Cancel</v-btn>
         </div>
         <div v-else class="d-flex ga-1">
           <v-btn size="small" variant="text" @click="startEdit(item)">Edit</v-btn>
-          <v-btn size="small" variant="text" color="error" @click="confirmDelete(item)">Delete</v-btn>
+          <v-btn
+            size="small"
+            variant="text"
+            color="error"
+            icon="mdi-close"
+            @click="confirmDelete(item)"
+          />
         </div>
       </template>
 
       <template #no-data>
         <div class="text-medium-emphasis py-8 text-center w-100">
-          No applications yet. Add your first one above.
+          {{ jobs.isSearching ? 'Nothing found' : 'No applications yet. Add your first one above.' }}
         </div>
       </template>
     </v-data-table>
@@ -101,7 +115,7 @@
         <v-card-title class="text-h6">Delete application</v-card-title>
         <v-card-text>
           Are you sure you want to delete
-          <strong>{{ toDelete?.company }}</strong> (#{{ toDelete?.number }})?
+          <strong>{{ toDelete?.company }}</strong>?
           This cannot be undone.
         </v-card-text>
         <v-card-actions>
@@ -112,7 +126,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- Snackbar -->
     <v-snackbar v-model="snackbar.show" :timeout="2000">
       {{ snackbar.text }}
     </v-snackbar>
@@ -129,8 +142,9 @@ definePageMeta({ middleware: 'auth', title: 'Tracker' })
 const jobs = useJobsStore()
 const auth = useAuthStore()
 
+// Table headers: use a synthetic "_row" key for the counter column
 const headers = [
-  { title: '#', key: 'number', width: 80 },
+  { title: '#', key: '_row', width: 80, sortable: false },
   { title: 'Company', key: 'company', minWidth: 240 },
   { title: 'Notes', key: 'notes', minWidth: 240 },
   { title: 'Applied', key: 'appliedAt', width: 160 },
@@ -159,10 +173,15 @@ const toDelete = ref<any | null>(null)
 // Snackbar
 const snackbar = ref({ show: false, text: '' })
 
+// Items shown in the table
+// When jobs.isSearching is true, items are already filtered by backend on company.
+// When not searching, allow client-side filter on notes as a convenience.
 const filteredItems = computed(() => {
+  const list = jobs.items
   const q = query.value.trim().toLowerCase()
-  if (!q) return jobs.items
-  return jobs.items.filter(j =>
+  if (jobs.isSearching) return list
+  if (!q) return list
+  return list.filter(j =>
     j.company.toLowerCase().includes(q) ||
     (j.notes ?? '').toLowerCase().includes(q)
   )
@@ -170,7 +189,7 @@ const filteredItems = computed(() => {
 
 function formatDate(d: string | Date) {
   const dt = new Date(d)
-  return dt.toLocaleDateString()
+  return dt.toLocaleDateString('de-DE') // e.g. 20.10.2025
 }
 
 async function onAdd() {
@@ -199,7 +218,7 @@ function cancelEdit() {
 
 function updateDateDisplay() {
   if (!editAppliedAt.value) { editDateDisplay.value = ''; return }
-  editDateDisplay.value = editAppliedAt.value.toLocaleDateString()
+  editDateDisplay.value = editAppliedAt.value.toLocaleDateString('de-DE')
 }
 
 async function saveEdit(id: string) {
@@ -223,6 +242,18 @@ async function doDelete() {
   deleteDialog.value = false
   snackbar.value = { show: true, text: 'Application deleted' }
   toDelete.value = null
+}
+
+// Backend search on company substring (case-insensitive)
+async function doSearch() {
+  const q = query.value.trim()
+  await jobs.search(q)
+}
+
+// Clear search and reload everything
+async function clearSearch() {
+  query.value = ''
+  await jobs.fetchAll()
 }
 
 onMounted(async () => {

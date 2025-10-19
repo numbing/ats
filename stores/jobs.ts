@@ -5,7 +5,6 @@ export interface Job {
   company: string
   notes?: string
   appliedAt: string | Date
-  number: number
   createdAt?: string
   updatedAt?: string
 }
@@ -14,21 +13,32 @@ export const useJobsStore = defineStore('jobs', {
   state: () => ({
     items: [] as Job[],
     loading: false as boolean,
-    error: '' as string
+    error: '' as string,
+    isSearching: false as boolean,
+    lastQuery: '' as string
   }),
 
   actions: {
-    async fetchAll() {
+    // fetch all, or search if q is provided
+    async fetchAll(q?: string) {
       this.loading = true
       try {
-        const { jobs } = await $fetch<{ jobs: Job[] }>('/api/jobs')
+        const { jobs } = await $fetch<{ jobs: Job[] }>('/api/jobs', {
+          query: q ? { q } : {}
+        })
         this.items = jobs
         this.error = ''
+        this.isSearching = !!q
+        this.lastQuery = q ?? ''
       } catch (e: any) {
         this.error = e?.data?.message || 'Failed to load jobs'
       } finally {
         this.loading = false
       }
+    },
+
+    async search(q: string) {
+      return this.fetchAll(q.trim())
     },
 
     async create(payload: { company: string; notes?: string }) {

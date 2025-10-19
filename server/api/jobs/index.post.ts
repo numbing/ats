@@ -18,7 +18,6 @@ export default defineEventHandler(async (event) => {
     company: body.company.trim(),
     notes: body.notes ?? '',
     appliedAt,
-    number: count + 1
   })
 
   return { job: { ...job.toObject(), _id: String(job._id) } }

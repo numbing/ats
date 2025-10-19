@@ -8,7 +8,6 @@ export interface IJob {
   company: string
   notes?: string
   appliedAt: Date
-  number: number  // per-user running number (1,2,3…)
   createdAt?: Date
   updatedAt?: Date
 }
@@ -18,7 +17,6 @@ const JobSchema = new Schema<IJob>({
   company: { type: String, required: true, trim: true },
   notes: { type: String, default: '' },
   appliedAt: { type: Date, required: true, default: () => new Date() },
-  number: { type: Number, required: true }
 }, { timestamps: true })
 
 export default models.Job || model<IJob>('Job', JobSchema)
