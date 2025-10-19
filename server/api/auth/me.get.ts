@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   if (!payload?.sub) return { user: null }
 
   const user = await User.findById(payload.sub).lean()
-  if (!user) return { user: null }
+  if (!user || Array.isArray(user)) return { user: null }
 
   return { user: { _id: String(user._id), email: user.email, name: user.name } }
 })
